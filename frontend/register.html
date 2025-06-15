@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="bg">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Динамична парола - Регистрация</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
+    <style>
+        #dynamic-password {
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            background-color: white;
+            caret-color: transparent
+        }
+
+        .inserted-tag {
+            background-color: #198754;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            margin: 0 2px;
+            display: inline-block;
+            font-size: 14px;
+            user-select: none;
+        }
+
+        .tag {
+            background-color: #0d6efd;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 16px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 14px;
+        }
+
+        .tag:hover {
+            background-color: #0a58ca;
+        }
+
+        #matrixLayout .tag {
+            width: 60px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <h4 class="mb-4">Регистрация</h4>
+                        <form id="register-form">
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Парола</label>
+                                <div id="dynamic-password" contenteditable="true"></div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Динамични параметри:</label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <div class="tag" data-value="{h:2}">Час</div>
+                                    <div class="tag" data-value="{i:2}">Минути</div>
+                                    <div class="tag" data-value="{d:2}">Ден</div>
+                                    <div class="tag" data-value="{m:2}">Месец</div>
+                                    <div class="tag" data-value="{w:3}">Ден от седмицата</div>
+                                </div>
+
+                                <label class="form-label mt-2">Случайни числа от матрица:</label>
+                                <div id="matrixLayout">
+
+                                </div>
+                            </div>
+                            <div id="result" class="mt-4 mb-2 fw-bold"></div>
+                            <button type="submit" class="btn btn-primary w-100">Регистрирация</button>
+                        </form>
+                        <a href="page-login" class="d-block mt-3 text-center">Вече имате акаунт? Влезте тук.</a>
+                    </div>
+                </div>
+
+                <div class="card shadow mt-3">
+                    <div class="card-body">
+                        <p>Тази система е разработена като част от дипломна работа на Момчил Минков - 213010045</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(function () {
+            const baseURL = "https://dr.mminkov.com";
+
+            for (let row = 1; row <= 8; row++) {
+                let matrixCol = `<div class="d-flex gap-2 mt-2">`;
+                for (let col = 1; col <= 8; col++) {
+                    const itemValue = `${col}.${row}`;
+                    matrixCol += `<div class="tag" data-value="{z.${col}.${row}:3}">${itemValue}</div>`;
+                }
+                matrixCol += `</div>`;
+                $("#matrixLayout").append(matrixCol);
+            }
+
+            const dynamicPasswordField = $("#dynamic-password");
+            const passwordElements = [];
+
+            $(".tag").draggable({
+                helper: "clone",
+                revert: "invalid"
+            });
+
+            dynamicPasswordField.droppable({
+                accept: ".tag",
+                drop: function (event, ui) {
+                    const value = ui.helper.data("value");
+                    const label = ui.helper.text();
+                    passwordElements.push({ type: 'dp', value, label });
+                    updateDynamicPassword();
+                }
+            });
+
+            dynamicPasswordField.on("keydown", function (e) {
+                e.preventDefault();
+                if (e.key === "Backspace") {
+                    passwordElements.pop();
+                    updateDynamicPassword();
+                }
+                else if (e.key === "{" || e.key === "}") {
+                    alert("Въвеждането на този символ не е позволено.");
+                }
+                else if (e.key.length === 1) {
+                    passwordElements.push({ type: 'c', value: e.key });
+                    updateDynamicPassword();
+                }
+            });
+
+            $(".tag").on("click", function () {
+                const value = $(this).data("value");
+                const label = $(this).text();
+                passwordElements.push({ type: 'dp', value, label });
+                updateDynamicPassword();
+            });
+
+            function updateDynamicPassword() {
+                dynamicPasswordField.html('');
+                passwordElements.forEach(item => {
+                    if (item.type === 'c') {
+                        //dynamicPasswordField.append(document.createTextNode('•'));
+                        dynamicPasswordField.append(item.value);
+                    } else if (item.type === 'dp') {
+                        const tagEl = $('<span class="inserted-tag"></span>').text(item.label);
+                        tagEl.attr('data-value', item.value);
+                        dynamicPasswordField.append(tagEl);
+                    }
+                });
+            }
+
+            $("#register-form").on("submit", function (e) {
+                e.preventDefault();
+                const email = $("#email").val().trim();
+                const password = passwordElements.map(item => item.value).join('');
+
+                $.ajax({
+                    url: `${baseURL}/register`,
+                    type: "POST",
+                    contentType: "application/json",
+                    dataType: "json",
+                    data: JSON.stringify({
+                        email: email,
+                        password: password
+                    }),
+                    success: function (data) {
+                        $("#result").html(data.message);
+                        $("#email").val("");
+                        $("#dynamic-password").html("");
+                    },
+                    error: function (error) {
+                        $("#result").html(JSON.parse(error.responseText).message);
+                    }
+                });
+
+            });
+        });
+    </script>
+
+</body>
+
+</html>
